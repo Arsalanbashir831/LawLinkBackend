@@ -67,7 +67,7 @@ userSchema.methods.generateAuthToken = async function () {
     const token = jwt.sign({ _id: user._id.toString(), type: user.type }, SECRET_KEY);
     user.token = token;
     user.tokenCreatedAt = Date.now();
-    user.tokenDeviceInfo = 'Device info'; // Replace with actual device info if needed
+    user.tokenDeviceInfo = 'Device info'; 
     await user.save();
     return token;
 };
