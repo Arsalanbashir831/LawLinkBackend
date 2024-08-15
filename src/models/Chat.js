@@ -1,6 +1,28 @@
 // Define the schema for a chat between a client and a lawyer
-const mongoose = require('mongoose')
-const MessageSchema = require('./Message')
+const mongoose = require('mongoose');
+
+// Define the schema for a message within a chat
+const MessageSchema = new mongoose.Schema(
+  {
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    content: {
+      type: String,
+      required: true,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    _id: false, // No need for an _id on each message
+  }
+);
+
 const ChatSchema = new mongoose.Schema(
     {
       client: {
