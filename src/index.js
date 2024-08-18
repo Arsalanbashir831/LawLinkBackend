@@ -19,7 +19,7 @@ app.use(cors());
 app.use(express.json()); 
 
 
-const server = http.createServer();
+const server = http.createServer(app);
 
 // Create a Socket.io server
 
@@ -39,24 +39,16 @@ app.use('/api/v1/lawyer' , postRoutes )
 app.use('/api/v1/ratings', ratingRoutes)
 app.use('/api/v1/bookings',bookingRoute )
 
-const port = PORT;
-app.listen(port, () => {
-    console.log('App listening on port', port);
-}); 
+// const port = PORT;
+// app.listen(port, () => {
+//     console.log('App listening on port', port);
+// }); 
 
 
 initializeWebSocket(server);
-
-
-
-
-    
-
-
-
-const wsPort = WS_PORT;
+const wsPort = PORT;
 server.listen(wsPort, () => {
-    console.log('WebSocket server listening on port', wsPort);
+    console.log('WebSocket + Http server listening on port', wsPort);
 });
 
 

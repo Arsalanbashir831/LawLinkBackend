@@ -7,7 +7,7 @@ const checkLawyer = async (user_id) => {
     if (!user) {
         throw new Error('User not found');
     }
-    if (user.type !== 'lawyer') {
+    if (user.type !== 'client') {
         throw new Error('User is not authorized to perform this action');
     }
     return user;
@@ -15,18 +15,25 @@ const checkLawyer = async (user_id) => {
 
 const createPost = async (req, res) => {
     try {
-        const { post_title, post_description } = req.body;
-        const user_id = req.user._id; 
+        const { post_title, post_description, lawType } = req.body;
+        const user_id = req.user._id;
         await checkLawyer(user_id);
-        const post = new Post({ post_title, post_description, user_id });
+        const post = new Post({ 
+            post_title, 
+            post_description, 
+            lawType, 
+            user_id 
+        });
         await post.save();
-        
         res.status(201).send(post);
     } catch (error) {
         console.error('Error creating post:', error);
         res.status(400).send({ error: error.message || 'Failed to create post' });
     }
 };
+
+module.exports = createPost;
+
 
 const getAllPosts = async (req, res) => {
     try {
@@ -56,6 +63,7 @@ const getAllPosts = async (req, res) => {
                 _id: post._id,
                 post_title: post.post_title,
                 post_description: post.post_description,
+                lawType:post.lawType,
                 user: {
                     _id: post.user_id._id,
                     username: post.user_id.username,
