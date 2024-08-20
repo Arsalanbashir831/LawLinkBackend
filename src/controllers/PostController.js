@@ -2,12 +2,12 @@ const Post = require('../models/Posts');
 const User = require('../models/User');
 const Rating = require('../models/Ratings')
 
-const checkLawyer = async (user_id) => {
+const checkLawyer = async (user_id, NotallowedUser) => {
     const user = await User.findById(user_id);
     if (!user) {
         throw new Error('User not found');
     }
-    if (user.type !== 'client') {
+    if (user.type !== NotallowedUser) {
         throw new Error('User is not authorized to perform this action');
     }
     return user;
@@ -17,7 +17,7 @@ const createPost = async (req, res) => {
     try {
         const { post_title, post_description, lawType } = req.body;
         const user_id = req.user._id;
-        await checkLawyer(user_id);
+        await checkLawyer(user_id,'lawyer');
         const post = new Post({ 
             post_title, 
             post_description, 
@@ -38,7 +38,7 @@ module.exports = createPost;
 const getAllPosts = async (req, res) => {
     try {
         const user_id = req.user._id;
-        await checkLawyer(user_id);
+        await checkLawyer(user_id,'client');
         const posts = await Post.find().populate('user_id', 'username email profilePic degreePic');
 
         const ratings = await Rating.aggregate([
