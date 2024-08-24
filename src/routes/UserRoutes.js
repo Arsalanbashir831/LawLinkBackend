@@ -1,5 +1,5 @@
 const express = require('express');
-const { signup , login, legalGpt } = require('../controllers/UserController');
+const { signup , login, legalGpt, forgotPassword, resetPassword } = require('../controllers/UserController');
 const { upload } = require('../middleware/uploadFile');
 
 
@@ -11,5 +11,7 @@ router.post('/signup',  upload.fields([
 ]) ,signup);
 router.post('/login', login);
 router.post('/legalGPT',legalGpt)
+router.post('/forgetPassword',forgotPassword)
+router.post('/resetPassword', resetPassword)
 
 module.exports = router;

@@ -23,12 +23,16 @@ const userSchema = new mongoose.Schema({
     },
     profilePic: {
         type: String,
+        default: ''
     },
     cnicFront: {
         type: String,
     },
     cnicBack: {
         type: String,
+    },
+    otp:{
+        type:String
     },
     degreePic: {
         type: String,

@@ -11,6 +11,7 @@ const userRoutes = require('./routes/UserRoutes')
 const postRoutes = require('./routes/PostRoutes')
 const ratingRoutes = require('./routes/RatingRoutes')
 const bookingRoute = require('./routes/BookingRoutes');
+const chatRoutes = require('./routes/ChatRoutes');
 const initializeWebSocket = require('./Socket');
 
 
@@ -38,7 +39,7 @@ app.use('/api/v1/users' , userRoutes)
 app.use('/api/v1/lawyer' , postRoutes )
 app.use('/api/v1/ratings', ratingRoutes)
 app.use('/api/v1/bookings',bookingRoute )
-
+app.use('/api/v1/chats', chatRoutes)
 // const port = PORT;
 // app.listen(port, () => {
 //     console.log('App listening on port', port);

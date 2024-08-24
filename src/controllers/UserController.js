@@ -1,7 +1,9 @@
-const { GEMINI_API_KEY } = require("../Constants");
+const { GEMINI_API_KEY, GMAIL_EMAIL, APP_PASS } = require("../Constants");
 const bucket = require("../firebaseConfig");
 const User = require("../models/User");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 
 const uploadFileToFirebase = async (fileBuffer, fileName) => {
@@ -18,6 +20,16 @@ const uploadFileToFirebase = async (fileBuffer, fileName) => {
     });
     return url;
 };
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    secure:true,
+    port:465,
+    auth: {
+        user: GMAIL_EMAIL, // Replace with your Gmail address
+        pass: APP_PASS, // Replace with your App Password
+    },
+});
 const signup = async (req, res) => {
     try {
         const { username, email, password, type } = req.body;
@@ -115,8 +127,56 @@ const legalGpt = async (req, res) => {
 };
 
 
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).send({ message: 'User not found' });
+        }
+        const otp = crypto.randomInt(100000, 999999).toString();
+        user.otp = otp;
+        await user.save();
+        await transporter.sendMail({
+            from: GMAIL_EMAIL,
+            to: user.email,
+            subject: 'Password Reset OTP',
+            text: `Your OTP for password reset is: ${otp}`,
+        });
+
+        res.send({ message: 'OTP sent to your email' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: 'An error occurred', error }); 
+    }
+};
+
+const resetPassword = async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+
+    try {
+        const user = await User.findOne({ email, otp });
+        if (!user) {
+            return res.status(400).send({ message: 'Invalid OTP or email' });
+        }
+        user.password = newPassword;
+        user.otp = undefined; 
+        await user.save();
+
+        res.send({ message: 'Password reset successful' });
+    } catch (error) {
+        console.log(error);
+        
+        res.status(500).send({ message: 'An error occurred', error });
+    }
+};
+
+
+
 module.exports = {
     signup,
     login,
-    legalGpt
+    legalGpt,
+    resetPassword,
+    forgotPassword
 };
