@@ -63,6 +63,7 @@ const signup = async (req, res) => {
                 email: user.email,
                 type: user.type,
                 profilePic: user.profilePic,
+                userId:user._id,
                 degreePic: user.type === 'lawyer' ? user.degreePic : undefined,
             },
             token: user.token,
@@ -88,6 +89,7 @@ const login = async (req, res) => {
                 email: user.email,
                 type: user.type,
                 profilePic: user.profilePic,
+                userId:user._id
             },
             token: user.token,
             deviceInfo: user.tokenDeviceInfo,
@@ -127,6 +129,21 @@ const legalGpt = async (req, res) => {
 };
 
 
+const userProfile = async (req, res) => {
+    const userId = req.user._id;
+    try {
+        const user = await User.findById(userId).select('-password'); 
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(200).json({ user });
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        res.status(500).json({ message: 'An error occurred while fetching the user profile', error });
+    }
+};
+
+
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
     try {
@@ -152,12 +169,12 @@ const forgotPassword = async (req, res) => {
 };
 
 const resetPassword = async (req, res) => {
-    const { email, otp, newPassword } = req.body;
+    const { email, newPassword } = req.body;
 
     try {
-        const user = await User.findOne({ email, otp });
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).send({ message: 'Invalid OTP or email' });
+            return res.status(400).send({ message: 'Invalid email' });
         }
         user.password = newPassword;
         user.otp = undefined; 
@@ -170,7 +187,19 @@ const resetPassword = async (req, res) => {
         res.status(500).send({ message: 'An error occurred', error });
     }
 };
-
+const otpVerification = async (req, res) => {
+    const { email, otp } = req.body;
+    try {
+        const user = await User.findOne({ email, otp });
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+        res.status(200).json({ message: 'OTP Verified' });
+    } catch (error) {
+        console.error('Error during OTP verification:', error);
+        res.status(500).json({ message: 'An error occurred', error });
+    }
+};
 
 
 module.exports = {
@@ -178,5 +207,7 @@ module.exports = {
     login,
     legalGpt,
     resetPassword,
-    forgotPassword
+    forgotPassword, 
+    otpVerification,
+    userProfile
 };

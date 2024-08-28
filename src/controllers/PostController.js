@@ -2,22 +2,12 @@ const Post = require('../models/Posts');
 const User = require('../models/User');
 const Rating = require('../models/Ratings')
 
-const checkLawyer = async (user_id, NotallowedUser) => {
-    const user = await User.findById(user_id);
-    if (!user) {
-        throw new Error('User not found');
-    }
-    if (user.type !== NotallowedUser) {
-        throw new Error('User is not authorized to perform this action');
-    }
-    return user;
-};
 
 const createPost = async (req, res) => {
     try {
         const { post_title, post_description, lawType } = req.body;
         const user_id = req.user._id;
-        await checkLawyer(user_id,'lawyer');
+      
         const post = new Post({ 
             post_title, 
             post_description, 
@@ -32,15 +22,9 @@ const createPost = async (req, res) => {
     }
 };
 
-module.exports = createPost;
-
-
 const getAllPosts = async (req, res) => {
     try {
-        const user_id = req.user._id;
-        await checkLawyer(user_id,'client');
         const posts = await Post.find().populate('user_id', 'username email profilePic degreePic');
-
         const ratings = await Rating.aggregate([
             {
                 $group: {
@@ -87,9 +71,6 @@ const getAllPosts = async (req, res) => {
 const getPostById = async (req, res) => {
     try {
         const { id } = req.params;
-        const user_id = req.user._id; 
-        await checkLawyer(user_id);
-
         const post = await Post.findById(id).populate('user_id', 'username email profilePic degreePic');
         if (!post) {
             return res.status(404).send({ error: 'Post not found' });
@@ -120,7 +101,7 @@ const updatePostById = async (req, res) => {
         const { id } = req.params;
         const { post_title, post_description } = req.body;
         const user_id = req.user._id; 
-        await checkLawyer(user_id);
+  
 
         const post = await Post.findById(id);
         if (!post) {
@@ -140,9 +121,7 @@ const updatePostById = async (req, res) => {
 
 const deletePostById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const user_id = req.user._id;
-        await checkLawyer(user_id);
+        const { id } = req.params;    
         const post = await Post.findByIdAndDelete(id);
 
         if (!post) {
