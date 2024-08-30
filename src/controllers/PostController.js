@@ -134,10 +134,66 @@ const deletePostById = async (req, res) => {
     }
 };
 
+
+const getPostsByUserId = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const posts = await Post.find({ user_id: userId }).populate('user_id', 'username email profilePic degreePic');
+
+        if (!posts || posts.length === 0) {
+            return res.status(404).send({ error: 'No posts found for this user' });
+        }
+
+        const ratings = await Rating.aggregate([
+            {
+                $group: {
+                    _id: "$lawyerId",
+                    avgRating: { $avg: "$rating" },
+                    count: { $sum: 1 },
+                }
+            }
+        ]);
+
+        const ratingsMap = ratings.reduce((map, item) => {
+            map[item._id.toString()] = {
+                avgRating: item.avgRating,
+                count: item.count
+            };
+            return map;
+        }, {});
+
+        const formattedPosts = posts.map(post => {
+            const lawyerRating = ratingsMap[post.user_id._id.toString()] || { avgRating: 0, count: 0 };
+            return {
+                _id: post._id,
+                post_title: post.post_title,
+                post_description: post.post_description,
+                lawType: post.lawType,
+                user: {
+                    _id: post.user_id._id,
+                    username: post.user_id.username,
+                    email: post.user_id.email,
+                    profile_pic: post.user_id.profilePic,
+                    degree_pic: post.user_id.degreePic,
+                    avgRating: lawyerRating.avgRating,
+                    ratingCount: lawyerRating.count,
+                }
+            };
+        });
+
+        res.status(200).send(formattedPosts);
+    } catch (error) {
+        console.error('Error fetching posts by user ID:', error);
+        res.status(400).send({ error: error.message || 'Failed to fetch posts by user ID' });
+    }
+};
+
+
 module.exports = {
     createPost,
     getAllPosts,
     getPostById,
     updatePostById,
     deletePostById,
+    getPostsByUserId
 };
