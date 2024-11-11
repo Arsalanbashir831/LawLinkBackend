@@ -4,6 +4,7 @@ const User = require("../models/User");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const { log } = require("console");
 
 
 const uploadFileToFirebase = async (fileBuffer, fileName) => {
@@ -30,41 +31,68 @@ const transporter = nodemailer.createTransport({
         pass: APP_PASS, // Replace with your App Password
     },
 });
+
+const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+};
 const signup = async (req, res) => {
     try {
-        const { username, email, password, type } = req.body;
+        const { username, email, password, type, lawyerType } = req.body;
+        
+        // Handle profile picture upload
         let profilePicUrl = null;
         if (req.files.profilePic) {
             const profilePicFileName = `profilePics/${Date.now()}_${req.files.profilePic[0].originalname}`;
             profilePicUrl = await uploadFileToFirebase(req.files.profilePic[0].buffer, profilePicFileName);
         }
 
+        // Handle degree picture upload for lawyers
         let degreePicUrl = null;
-        if (type === 'lawyer' && req.files.degreePic) {
-            const degreePicFileName = `degreePics/${Date.now()}_${req.files.degreePic[0].originalname}`;
-            degreePicUrl = await uploadFileToFirebase(req.files.degreePic[0].buffer, degreePicFileName);
+        if (type === 'lawyer') {
+            if (!lawyerType) {
+                return res.status(400).send({ error: 'Lawyer type is required for lawyers.' });
+            }
+            if (req.files.degreePic) {
+                const degreePicFileName = `degreePics/${Date.now()}_${req.files.degreePic[0].originalname}`;
+                degreePicUrl = await uploadFileToFirebase(req.files.degreePic[0].buffer, degreePicFileName);
+            }
         }
 
+        // Generate OTP and save user
+        const otp = generateOTP();
         const user = new User({
             username,
             email,
             password,
             type,
+            lawyerType: type === 'lawyer' ? lawyerType : undefined,
             profilePic: profilePicUrl,
-            degreePic: degreePicUrl, 
+            degreePic: degreePicUrl,
+            verified: false,
+            otp, // Save OTP for verification
         });
 
         await user.save();
         const token = await user.generateAuthToken();
+
+        // Send OTP email
+        await transporter.sendMail({
+            from: GMAIL_EMAIL,
+            to: email,
+            subject: 'Email Verification OTP',
+            text: `Dear ${username}, your OTP for email verification is: ${otp}`,
+        });
 
         const responseObject = {
             user: {
                 username: user.username,
                 email: user.email,
                 type: user.type,
+                lawyerType: user.type === 'lawyer' ? user.lawyerType : undefined,
                 profilePic: user.profilePic,
-                userId:user._id,
+                userId: user._id,
                 degreePic: user.type === 'lawyer' ? user.degreePic : undefined,
+                verified: user.verified,
             },
             token: user.token,
             deviceInfo: user.tokenDeviceInfo,
@@ -81,25 +109,34 @@ const signup = async (req, res) => {
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        
+        // Find user and verify credentials
         const user = await User.findByCredentials(email, password);
+        
+        // Check if user is verified
+        if (!user.verified) {
+            return res.status(403).send({ error: 'Account not verified. Please verify your OTP.' });
+        }
+
         const token = await user.generateAuthToken();
         res.send({
             user: {
                 username: user.username,
                 email: user.email,
                 type: user.type,
+                lawyerType: user.type === 'lawyer' ? user.lawyerType : undefined,
                 profilePic: user.profilePic,
-                userId:user._id
+                userId: user._id,
+                verified: user.verified,
             },
             token: user.token,
             deviceInfo: user.tokenDeviceInfo,
             createdAt: user.tokenCreatedAt,
         });
     } catch (error) {
-        res.status(400).send({ error: 'Login failed! Check your credentials' });
+        res.status(400).send({ error: 'Login failed! Check your credentials.' });
     }
 };
-
 const legalGpt = async (req, res) => {
     try {
         if (!req.body || !req.body.textPrompt) {
@@ -143,6 +180,77 @@ const userProfile = async (req, res) => {
     }
 };
 
+
+const updateUserProfile = async (req, res) => {
+    try {
+        const userId = req.user._id; // Assuming user ID is obtained from authentication middleware
+        const { username } = req.body;
+
+        // Check if only username update is requested
+        if (req.headers['content-type'] === 'application/json') {
+            // Update only the username field
+            const updatedUser = await User.findByIdAndUpdate(
+                userId,
+                { username }, // Update only the username field
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedUser) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            return res.status(200).json({
+                message: "Username updated successfully",
+                user: {
+                    username: updatedUser.username,
+                },
+            });
+        }
+
+        // If Content-Type is not JSON, check for profile picture and degree picture updates
+        const updates = {};
+
+        if (req.files?.profilePic) {
+            const profilePicFileName = `profilePics/${Date.now()}_${req.files.profilePic[0].originalname}`;
+            const profilePicUrl = await uploadFileToFirebase(req.files.profilePic[0].buffer, profilePicFileName);
+            updates.profilePic = profilePicUrl;
+        }
+
+        if (req.user.type === 'lawyer' && req.files?.degreePic) {
+            const degreePicFileName = `degreePics/${Date.now()}_${req.files.degreePic[0].originalname}`;
+            const degreePicUrl = await uploadFileToFirebase(req.files.degreePic[0].buffer, degreePicFileName);
+            updates.degreePic = degreePicUrl;
+        }
+
+        // If updates object is empty (i.e., no profilePic or degreePic), respond with an error
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: "No updates provided" });
+        }
+
+        // Perform updates with available fields
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            updates,
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.status(200).json({
+            message: "Profile updated successfully",
+            user: {
+                username: updatedUser.username,
+                profilePic: updatedUser.profilePic,
+                degreePic: updatedUser.degreePic,
+            },
+        });
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ error: "Failed to update profile" });
+    }
+};
 
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
@@ -190,16 +298,24 @@ const resetPassword = async (req, res) => {
 const otpVerification = async (req, res) => {
     const { email, otp } = req.body;
     try {
+        // Find user by email and otp
         const user = await User.findOne({ email, otp });
         if (!user) {
             return res.status(400).json({ message: 'Invalid OTP' });
         }
-        res.status(200).json({ message: 'OTP Verified' });
+
+        // Update user's verified status
+        user.verified = true;
+        user.otp = null; // Clear the OTP after verification
+        await user.save();
+
+        res.status(200).json({ message: 'OTP Verified and account is now verified' });
     } catch (error) {
         console.error('Error during OTP verification:', error);
         res.status(500).json({ message: 'An error occurred', error });
     }
 };
+
 
 
 module.exports = {
@@ -209,5 +325,5 @@ module.exports = {
     resetPassword,
     forgotPassword, 
     otpVerification,
-    userProfile
+    userProfile , updateUserProfile
 };

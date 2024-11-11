@@ -6,7 +6,7 @@ const {
     forgotPassword,
     resetPassword,
     userProfile,
-    otpVerification 
+    otpVerification , updateUserProfile
 } = require('../controllers/UserController');
 const { upload } = require('../middleware/uploadFile');
 const verifyToken = require('../middleware/verifyToken');
@@ -18,11 +18,14 @@ router.post('/signup',  upload.fields([
     { name: 'profilePic', maxCount: 1 }, 
     { name: 'degreePic', maxCount: 1 },
 ]) ,signup);
+
+router.post('/update-profile', verifyToken, updateUserProfile);
 router.post('/login', login);
 router.post('/legalGPT',legalGpt);
 router.post('/forgetPassword',forgotPassword);
 router.post('/resetPassword', resetPassword);
 router.post('/verifyOtp', otpVerification);
 router.get('/userProfile',verifyToken, userProfile);
+
 
 module.exports = router;

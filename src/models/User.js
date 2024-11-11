@@ -31,8 +31,8 @@ const userSchema = new mongoose.Schema({
     cnicBack: {
         type: String,
     },
-    otp:{
-        type:String
+    otp: {
+        type: String
     },
     degreePic: {
         type: String,
@@ -44,6 +44,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['lawyer', 'client'],
         required: true,
+    },
+    lawyerType: {
+        type: String,
+        enum: ['session court', 'high court'],
+        required: function () {
+            return this.type === 'lawyer';
+        },
+    },
+    verified: {
+        type: Boolean,
+        default: false,
     },
     token: {
         type: String,
