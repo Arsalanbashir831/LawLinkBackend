@@ -32,6 +32,17 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+const sendMailForQuery = async(req,res)=>{
+    const {email , query}= req.body
+    await transporter.sendMail({
+        from: GMAIL_EMAIL,
+        to: email,
+        subject: 'Subject',
+        text: `${query}`,
+    })
+    res.status(201).send({success: "Email Sended "});
+
+}
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
 };
@@ -325,5 +336,5 @@ module.exports = {
     resetPassword,
     forgotPassword, 
     otpVerification,
-    userProfile , updateUserProfile
+    userProfile , updateUserProfile,sendMailForQuery
 };

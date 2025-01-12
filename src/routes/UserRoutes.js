@@ -6,7 +6,7 @@ const {
     forgotPassword,
     resetPassword,
     userProfile,
-    otpVerification , updateUserProfile
+    otpVerification , updateUserProfile,sendMailForQuery
 } = require('../controllers/UserController');
 const { upload } = require('../middleware/uploadFile');
 const verifyToken = require('../middleware/verifyToken');
@@ -25,7 +25,9 @@ router.post('/legalGPT',legalGpt);
 router.post('/forgetPassword',forgotPassword);
 router.post('/resetPassword', resetPassword);
 router.post('/verifyOtp', otpVerification);
+router.post('/query',sendMailForQuery)
 router.get('/userProfile',verifyToken, userProfile);
+
 
 
 module.exports = router;
